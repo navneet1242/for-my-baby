@@ -145,8 +145,49 @@ scene.add(heartGroup);
 scene.add(new THREE.AmbientLight(0xffffff, 0.5));
 
 // ═══════════════════════════════════════════
-// UI OVERLAYS
+// UI OVERLAYS (Responsive + Animations)
 // ═══════════════════════════════════════════
+const style = document.createElement("style");
+style.innerHTML = `
+  @keyframes sparkPulse {
+    0% { opacity: 1; transform: scale(1); text-shadow: 0 0 10px rgba(255,255,255,0.8); }
+    50% { opacity: 0.5; transform: scale(1.3); text-shadow: 0 0 20px rgba(255,200,220,1); }
+    100% { opacity: 1; transform: scale(1); text-shadow: 0 0 10px rgba(255,255,255,0.8); }
+  }
+  .sparkle {
+    display: inline-block;
+    animation: sparkPulse 0.5s infinite;
+    color: #ffd0e0;
+    margin-left: 4px;
+    font-size: 1.2em;
+    vertical-align: middle;
+  }
+  #letter-div {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+    color: rgba(255,230,240,0.9);
+    text-align: center;
+    width: 90%;
+    max-width: 600px;
+    line-height: 1.8;
+    background: rgba(0,0,0,0.45);
+    padding: 2.5rem;
+    border-radius: 15px;
+    border: 1px solid rgba(232,160,191,0.2);
+    box-shadow: 0 0 30px rgba(0,0,0,0.5);
+    backdrop-filter: blur(5px);
+  }
+  @media (max-width: 600px) {
+    #counter-container { gap: 0.4rem !important; }
+    .counter-box { width: 60px !important; padding: 0.5rem 0.2rem !important; }
+    .counter-val { font-size: 1.3rem !important; }
+    .counter-lbl { font-size: 0.5rem !important; }
+    #letter-div { padding: 1.5rem !important; width: 95% !important; font-size: 1.15rem !important; line-height: 1.6; }
+    #closing-div { font-size: 1rem !important; width: 90% !important; bottom: 25% !important; }
+  }
+`;
+document.head.appendChild(style);
+
 const overlay = document.createElement("div");
 overlay.style.cssText =
   "position:fixed;inset:0;z-index:10;pointer-events:none;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;text-align:center;font-family:'Cormorant Garamond',Georgia,serif;";
@@ -154,44 +195,87 @@ document.body.appendChild(overlay);
 
 const mainTxt = document.createElement("h1");
 mainTxt.style.cssText =
-  "font-family:'Tangerine',cursive;font-size:clamp(3rem,7vw,5rem);color:#ffd0e0;text-shadow:0 0 60px rgba(255,180,200,.5);line-height:1.2;transition:opacity .8s ease;font-weight:700;";
+  "font-family:'Tangerine',cursive;font-size:clamp(3rem,7vw,5rem);color:#ffd0e0;text-shadow:0 0 60px rgba(255,180,200,.5);line-height:1.2;font-weight:700;";
 overlay.appendChild(mainTxt);
 
 const subTxt = document.createElement("p");
 subTxt.style.cssText =
-  "font-family:'Inter',sans-serif;font-size:.75rem;color:rgba(255,180,200,.55);letter-spacing:.25em;text-transform:uppercase;margin-top:.8rem;transition:opacity .8s ease;";
+  "font-family:'Inter',sans-serif;font-size:.75rem;color:rgba(255,180,200,.55);letter-spacing:.25em;text-transform:uppercase;margin-top:.8rem;";
 overlay.appendChild(subTxt);
 
+const typingIds = new Map();
+function typeHtml(el, html, speed, onComplete) {
+  const currentId = Date.now() + Math.random();
+  typingIds.set(el, currentId);
+  el.innerHTML = "";
+  if (!html) {
+    if (onComplete) onComplete();
+    return;
+  }
+  
+  let i = 0;
+  let isTag = false;
+  let text = "";
+  
+  const spark = document.createElement("span");
+  spark.innerHTML = "✨";
+  spark.className = "sparkle";
+  
+  function type() {
+    if (typingIds.get(el) !== currentId) return; // aborted
+    
+    if (i < html.length) {
+      if (html[i] === '<') isTag = true;
+      text += html[i];
+      if (html[i] === '>') isTag = false;
+      
+      if (!isTag) {
+        el.innerHTML = text;
+        el.appendChild(spark);
+        setTimeout(type, speed);
+      } else {
+        type();
+      }
+      i++;
+    } else {
+      if (spark.parentNode === el) el.removeChild(spark);
+      if (onComplete) onComplete();
+    }
+  }
+  type();
+}
+
 function setOverlay(main, sub) {
-  mainTxt.style.opacity = "0";
-  subTxt.style.opacity = "0";
-  setTimeout(() => {
-    mainTxt.textContent = main || "\u00a0";
-    subTxt.textContent = sub || "\u00a0";
-    mainTxt.style.opacity = main ? "1" : "0";
-    subTxt.style.opacity = sub ? "1" : "0";
-  }, 300);
+  typeHtml(mainTxt, main || "", 40, () => {
+    if (sub) {
+      typeHtml(subTxt, sub, 30);
+    } else {
+      subTxt.innerHTML = "";
+    }
+  });
 }
 
 // ═══════════════════════════════════════════
 // LETTER DIV (stage 8)
 // ═══════════════════════════════════════════
-const letterDiv = document.createElement("div");
-letterDiv.style.cssText =
-  "display:none;position:fixed;top:45%;left:50%;transform:translate(-50%, -50%);z-index:10;pointer-events:none;font-family:'Cormorant Garamond',Georgia,serif;font-size:clamp(1.1rem,2.5vw,1.4rem);color:rgba(255,230,240,0.9);text-align:center;width:90%;max-width:600px;line-height:1.6;background:rgba(0,0,0,0.4);padding:2rem;border-radius:15px;border:1px solid rgba(232,160,191,0.2);box-shadow:0 0 30px rgba(0,0,0,0.5);opacity:0;transition:opacity 1s ease;backdrop-filter:blur(4px);";
-letterDiv.innerHTML = `
+const letterContent = `
   My dearest Mrunal,<br><br>
   Every time I look at the stars, I'm reminded of how perfectly the universe had to align for our paths to cross. From the bustling streets of Mumbai to the warmth of Bihar, the distance between us is just a space waiting to be filled with our memories.<br><br>
   Since that beautiful day in May, you've become my brightest star, my peace, and my home. I might not be able to hold your hand right this second, but my heart is already with you, every single day.<br><br>
   I love you.<br><br>
   — Navneet
 `;
+const letterDiv = document.createElement("div");
+letterDiv.id = "letter-div";
+letterDiv.style.cssText =
+  "display:none;position:fixed;top:45%;left:50%;transform:translate(-50%, -50%);z-index:10;pointer-events:none;opacity:0;transition:opacity 1s ease;";
 document.body.appendChild(letterDiv);
 
 // ═══════════════════════════════════════════
 // COUNTER (finale only)
 // ═══════════════════════════════════════════
 const counterDiv = document.createElement("div");
+counterDiv.id = "counter-container";
 counterDiv.style.cssText =
   "display:none;position:fixed;bottom:12%;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none;gap:.8rem;";
 document.body.appendChild(counterDiv);
@@ -201,14 +285,17 @@ function buildCounter() {
     ["cd", "days"], ["ch", "hours"], ["cm", "minutes"], ["cs", "seconds"]
   ].forEach(([id, lbl]) => {
     const box = document.createElement("div");
+    box.className = "counter-box";
     box.style.cssText =
       "display:flex;flex-direction:column;align-items:center;gap:.1rem;width:70px;padding:.7rem .3rem;background:rgba(255,255,255,.04);border:1px solid rgba(232,160,191,.12);border-radius:14px;";
     const v = document.createElement("span");
     v.id = id; v.textContent = "0";
+    v.className = "counter-val";
     v.style.cssText =
       "font-family:'Inter',sans-serif;font-size:1.5rem;font-weight:400;color:#e8a0bf;text-shadow:0 0 15px rgba(232,160,191,.35);";
     const l = document.createElement("span");
     l.textContent = lbl;
+    l.className = "counter-lbl";
     l.style.cssText =
       "font-family:'Inter',sans-serif;font-size:.55rem;font-weight:300;color:rgba(230,200,200,.3);letter-spacing:.15em;text-transform:uppercase;";
     box.appendChild(v); box.appendChild(l);
@@ -218,10 +305,12 @@ function buildCounter() {
 buildCounter();
 
 const closingDiv = document.createElement("div");
+closingDiv.id = "closing-div";
 closingDiv.style.cssText =
   "display:none;position:fixed;bottom:22%;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none;font-family:'Cormorant Garamond',Georgia,serif;font-size:clamp(.85rem,2vw,1rem);font-style:italic;color:rgba(240,210,210,.6);text-align:center;max-width:420px;";
-closingDiv.textContent = "One day there won't be any screens between us. No goodbyes — just goodnight. Until then, every heartbeat, every mile, every second — I'm yours.";
 document.body.appendChild(closingDiv);
+
+const closingContent = "One day there won't be any screens between us. No goodbyes — just goodnight. Until then, every heartbeat, every mile, every second — I'm yours.";
 
 const sigDiv = document.createElement("div");
 sigDiv.style.cssText =
@@ -235,6 +324,13 @@ function startCounter() {
   counterDiv.style.display = "flex";
   closingDiv.style.display = "block";
   sigDiv.style.display = "block";
+  sigDiv.style.opacity = "0";
+  
+  typeHtml(closingDiv, closingContent, 20, () => {
+    sigDiv.style.opacity = "1";
+    sigDiv.style.transition = "opacity 1s ease";
+  });
+  
   tickCounter();
   counterInterval = setInterval(tickCounter, 1000);
 }
@@ -296,11 +392,17 @@ function go(n) {
   
   if (n === 8) {
     letterDiv.style.display = "block";
-    setTimeout(() => { letterDiv.style.opacity = "1"; }, 50);
+    setTimeout(() => { 
+      letterDiv.style.opacity = "1";
+      typeHtml(letterDiv, letterContent, 15);
+    }, 50);
   } else {
     letterDiv.style.opacity = "0";
     setTimeout(() => { 
-      if (stage !== 8) letterDiv.style.display = "none"; 
+      if (stage !== 8) {
+        letterDiv.style.display = "none"; 
+        letterDiv.innerHTML = "";
+      }
     }, 1000);
   }
 

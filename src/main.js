@@ -74,79 +74,72 @@ const stars = new THREE.Points(starGeo, starMat);
 scene.add(stars);
 
 // ═══════════════════════════════════════════
-// INTERTWINED GLOWING STREAMS
+// 3D GLOWING HEART
 // ═══════════════════════════════════════════
-const streamGeo = new THREE.BufferGeometry();
-const particlesPerStream = 5000;
-const totalStreamP = particlesPerStream * 2;
-const streamPos = new Float32Array(totalStreamP * 3);
-const streamCol = new Float32Array(totalStreamP * 3);
-
-const color1 = new THREE.Color().setHSL(0.94, 0.9, 0.55);
-const color2 = new THREE.Color().setHSL(0.08, 0.85, 0.6);
-
-for (let s = 0; s < 2; s++) {
-  const phaseOffset = s * Math.PI;
-
-  for (let i = 0; i < particlesPerStream; i++) {
-    const idx = (s * particlesPerStream + i) * 3;
-    const t = i / (particlesPerStream - 1);
-
-    const angle = t * Math.PI * 10 + phaseOffset;
-    const y = (t - 0.5) * 22;
-    const baseR = 4.5 + Math.sin(t * Math.PI) * 2.0;
-
-    const spreadAngle = Math.random() * Math.PI * 2;
-    const spreadRadius = Math.sqrt(Math.random()) * 1.0;
-    const r = baseR + Math.cos(spreadAngle) * spreadRadius;
-
-    streamPos[idx]     = Math.cos(angle) * r;
-    streamPos[idx + 1] = y + Math.sin(spreadAngle) * spreadRadius;
-    streamPos[idx + 2] = Math.sin(angle) * r;
-
-    const baseCol = s === 0 ? color1 : color2;
-    const hsl = {};
-    baseCol.getHSL(hsl);
-    const col = new THREE.Color();
-    col.setHSL(
-      Math.max(0, Math.min(1, hsl.h + (Math.random() - 0.5) * 0.03)),
-      hsl.s + (Math.random() - 0.5) * 0.15,
-      Math.max(0.1, Math.min(0.9, hsl.l + (Math.random() - 0.5) * 0.3))
-    );
-    streamCol[idx]     = col.r;
-    streamCol[idx + 1] = col.g;
-    streamCol[idx + 2] = col.b;
+const heartGeo = new THREE.BufferGeometry();
+const heartN = 12000;
+const heartP = new Float32Array(heartN * 3);
+const heartC = new Float32Array(heartN * 3);
+let idx = 0;
+while (idx < heartN) {
+  const x = (Math.random() - 0.5) * 3;
+  const y = (Math.random() - 0.5) * 3.5;
+  const z = (Math.random() - 0.5) * 3;
+  
+  const xx = x*x;
+  const yy = y*y;
+  const zz = z*z;
+  
+  const a = xx + (9/4)*zz + yy - 1;
+  const val = a*a*a - xx*y*yy - (9/80)*zz*y*yy;
+  
+  if (val < 0) {
+    heartP[idx*3] = x * 10;
+    heartP[idx*3+1] = (y * 10) + 2; 
+    heartP[idx*3+2] = z * 10;
+    
+    const c = new THREE.Color();
+    const hue = 0.9 + (Math.random() * 0.1); 
+    const sat = 0.8 + (Math.random() * 0.2);
+    const lit = 0.4 + (Math.random() * 0.4);
+    c.setHSL(hue, sat, lit);
+    
+    heartC[idx*3] = c.r;
+    heartC[idx*3+1] = c.g;
+    heartC[idx*3+2] = c.b;
+    
+    idx++;
   }
 }
-streamGeo.setAttribute("position", new THREE.BufferAttribute(streamPos, 3));
-streamGeo.setAttribute("color", new THREE.BufferAttribute(streamCol, 3));
+heartGeo.setAttribute("position", new THREE.BufferAttribute(heartP, 3));
+heartGeo.setAttribute("color", new THREE.BufferAttribute(heartC, 3));
 
-const streamMat = new THREE.PointsMaterial({
+const heartMat = new THREE.PointsMaterial({
   map: starTex,
-  size: 0.22,
+  size: 0.35,
   vertexColors: true,
   blending: THREE.AdditiveBlending,
   depthWrite: false,
   transparent: true,
-  opacity: 0.85
+  opacity: 0.8
 });
 
-const streamGroup = new THREE.Group();
-const streamPoints = new THREE.Points(streamGeo, streamMat);
-streamGroup.add(streamPoints);
+const heartGroup = new THREE.Group();
+const heartPoints = new THREE.Points(heartGeo, heartMat);
+heartGroup.add(heartPoints);
 
-// Soft central glow
-const streamGlowGeo = new THREE.SphereGeometry(5, 32, 32);
-const streamGlowMat = new THREE.MeshBasicMaterial({
-  color: 0xff8855,
+// Add a soft glow behind the heart
+const glowGeo = new THREE.SphereGeometry(12, 32, 32);
+const glowMat = new THREE.MeshBasicMaterial({
+  color: 0xff3366,
   transparent: true,
-  opacity: 0.06,
+  opacity: 0.05,
   blending: THREE.AdditiveBlending,
   depthWrite: false
 });
-const streamGlowMesh = new THREE.Mesh(streamGlowGeo, streamGlowMat);
-streamGroup.add(streamGlowMesh);
-scene.add(streamGroup);
+const glowMesh = new THREE.Mesh(glowGeo, glowMat);
+heartGroup.add(glowMesh);
+scene.add(heartGroup);
 
 // Ambient Lighting
 scene.add(new THREE.AmbientLight(0xffffff, 0.5));
@@ -342,16 +335,17 @@ function animate() {
   stars.rotation.y += 0.0002;
   stars.rotation.x += 0.0001;
 
-  // Intertwined Streams Animation
-  streamGroup.rotation.y = t * 0.25;
-  streamGroup.rotation.x = Math.sin(t * 0.3) * 0.15;
-  streamGroup.rotation.z = Math.cos(t * 0.35) * 0.1;
-
-  const pulse = 1 + Math.pow(Math.sin(t * Math.PI), 4) * 0.04;
-  streamGroup.scale.set(pulse, pulse, pulse);
-
-  const targetOp = stage >= 8 ? 0.4 : 0.85;
-  streamMat.opacity += (targetOp - streamMat.opacity) * 0.05;
+  // Heart Animation
+  heartGroup.rotation.y = t * 0.2;
+  heartGroup.rotation.z = Math.sin(t * 0.5) * 0.1;
+  
+  // Heart beating (pulsing scale based on time)
+  const beat = 1 + Math.pow(Math.sin(t * Math.PI), 4) * 0.05;
+  heartGroup.scale.set(beat, beat, beat);
+  
+  // Transition heart opacity across stages
+  const targetOp = stage >= 8 ? 0.4 : 0.8;
+  heartMat.opacity += (targetOp - heartMat.opacity) * 0.05;
 
   stars.material.opacity += ((stage >= 5 ? 0.3 : 0.9) - stars.material.opacity) * 0.02;
 
